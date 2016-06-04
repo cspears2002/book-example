@@ -1,8 +1,10 @@
 import uuid
 import sys
 from accounts.models import Token
-from django.shortcuts import render
 from django.core.mail import send_mail
+from django.contrib.auth import authenticate
+from django.contrib.auth import login as auth_login
+from django.shortcuts import redirect, render
 
 
 def send_login_email(request):
@@ -18,3 +20,11 @@ def send_login_email(request):
         [email],
     )
     return render('login_email_sent.html')
+
+
+def login(request, uid):
+    print('login view', file=sys.stderr)
+    user = authenticate(uid=uid)
+    if user is not None:
+        auth_login(request, user)
+    return redirect('/')
