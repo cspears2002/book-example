@@ -22,8 +22,9 @@ def send_login_email(request):
     return render('login_email_sent.html')
 
 
-def login(request, uid):
+def login(request):
     print('login view', file=sys.stderr)
+    uid = request.GET.get('uid')
     user = authenticate(uid=uid)
     if user is not None:
         auth_login(request, user)
