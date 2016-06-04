@@ -12,7 +12,7 @@ def send_login_email(request):
     email = request.POST['email']
     uid = str(uuid.uuid4())
     Token.objects.create(email=email, uid=uid)
-    url = 'http://localhost/accounts/login/{uid}/'.format(uid=uid)
+    url = 'http://localhost/accounts/login/?uid={uid}/'.format(uid=uid)
     send_mail(
         'Your login link for Superlists',
         'Use this link to log into the site:\n\n {url}\n'.format(url=url),
