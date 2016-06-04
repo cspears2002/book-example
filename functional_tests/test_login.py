@@ -9,33 +9,50 @@ from django.test import override_settings
 from .base import FunctionalTest
 
 TEST_EMAIL = 'edith.testuser@yahoo.com'
-CODE_FINDER = r'^Use this code to log in: (.+)$'
+SUBJECT = 'Your login link for Superlists'
+
+
+
 
 
 class LoginTest(FunctionalTest):
 
-    def get_inbox_connection(self):
+    def setUp(self):
+        # tidy up an emails from previous runs before we start
+        self.cleanup_superlists_emails()
+        super().setUp()
+
+
+    def last_few_emails(self):
+        # return up to 10 latest emails. new connection each time.
         inbox = poplib.POP3_SSL('pop.mail.yahoo.com')
-        self.addCleanup(inbox.quit)
         inbox.user(TEST_EMAIL)
         inbox.pass_(os.environ.get('YAHOO_PASSWORD'))
-        return inbox
+        last_id, _ = inbox.stat()
+        for email_id in reversed(range(max(last_id - 10, 1), last_id + 1)):
+            _, lines, __ = inbox.retr(email_id)
+            yield inbox, email_id, [l.decode('utf8') for l in lines]
 
 
-    def wait_for_email(self, subject):
+    def cleanup_superlists_emails(self):
+        subject_line = 'Subject: {}'.format(SUBJECT)
+        for inbox, email_id, lines in self.last_few_emails():
+            if subject_line in lines:
+                print('deleting email id', email_id)
+                inbox.dele(email_id)
+
+
+    def wait_for_login_email(self):
         start = time.time()
-        subject_line = 'Subject: {}'.format(subject)
-        inbox = self.get_inbox_connection()
-        last_email_id, _ = inbox.stat()
+        subject_line = 'Subject: {}'.format(SUBJECT)
         while time.time() - start < 60:
-            last_email_id -= 1
-            print('getting msg no.', last_email_id)
-            _, lines, __ = inbox.retr(last_email_id)
-            decoded_lines = [l.decode('utf8') for l in lines]
-            if subject_line in decoded_lines:
-                self.addCleanup(lambda: inbox.dele(last_email_id))
-                return '\n'.join(decoded_lines)
+            print('checking last few emails')
+            for inbox, email_id, lines in self.last_few_emails():
+                if subject_line in lines:
+                    self.addCleanup(lambda: inbox.dele(email_id))
+                    return '\n'.join(lines)
             time.sleep(5)
+        self.fail('No email with correct subject line found')
 
 
     @override_settings(EMAIL_BACKEND=mail._original_email_backend)
@@ -54,11 +71,11 @@ class LoginTest(FunctionalTest):
         self.assertIn('Check your email', body.text)
 
         # She checks her email and finds a message
-        email_body = self.wait_for_email('Your login link for Superlists')
+        email_body = self.wait_for_login_email()
 
         # It has a url link in it
         self.assertIn('Use this link to log in', email_body)
-        url_search = re.search(r'http://.+/.+/', email_body)
+        url_search = re.search(r'http://.+/.+$', email_body)
         if not url_search:
             self.fail('Could not find url in email body:\n{}'.format(email_body))
         url = url_search.group(0)
