@@ -33,8 +33,8 @@ class LoginTest(FunctionalTest):
             _, lines, __ = inbox.retr(last_email_id)
             decoded_lines = [l.decode('utf8') for l in lines]
             if subject_line in decoded_lines:
-                self.addCleanup(lambda: inbox.delete(last_email_id))
-                return '\n'.join(lines)
+                self.addCleanup(lambda: inbox.dele(last_email_id))
+                return '\n'.join(decoded_lines)
             time.sleep(5)
 
 
