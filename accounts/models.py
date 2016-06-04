@@ -25,3 +25,11 @@ class ListUser(AbstractBaseUser, PermissionsMixin):
     def is_active(self):
         return True
 
+
+class ListUserManager(BaseUserManager):
+
+    def create_user(self, email):
+        ListUser.objects.create(email=email)
+
+    def create_superuser(self, email, password):
+        self.create_user(email)
